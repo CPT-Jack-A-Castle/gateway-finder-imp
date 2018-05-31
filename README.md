@@ -1,10 +1,8 @@
-
-## Info
-
 This is a slightly improved version of an original [gateway-finder](https://github.com/pentestmonkey/gateway-finder) with python3 and support of IPv6
 
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
+## Info
 
 ![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder.png)
 
