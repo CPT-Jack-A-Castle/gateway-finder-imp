@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 # gateway-finder - Tool to identify routers on the local LAN and paths to the Internet
 # Copyright (C) 2011 pentestmonkey@pentestmonkey.net
 # 
@@ -35,23 +35,26 @@ from optparse import OptionParser
 parser = OptionParser(usage="Usage: %prog [ -I interface ] -i ip -f macs.txt\n\nTries to find a layer-3 gateway to the Internet.  Attempts to reach an IP\naddress using ICMP ping and TCP SYN to port 80 via each potential gateway\nin macs.txt (ARP scan to find MACs)")
 parser.add_option("-i", "--ip", dest="ip", help="Internet IP to probe")
 parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Verbose output")
+parser.add_option("-6", "--ipv6", dest="Use ipv6 address", action="store_true", default=False, help="Use ipv6 addresss")
 parser.add_option("-I", "--interface", dest="interface", default="eth0", help="Network interface to use")
-parser.add_option("-f", "--macfil", dest="macfile", help="File containing MAC addresses")
+parser.add_option("-f", "--macfile", dest="macfile", help="File containing MAC addresses")
 
 (options, args) = parser.parse_args()
 
 if not options.macfile:
-	print "[E] No macs.txt specified.  -h for help."
+	print("[E] No macs.txt specified.  -h for help.")
 	sys.exit(0)
 
 if not options.ip:
-	print "[E] No target IP specified.  -h for help."
+	print("[E] No target IP specified.  -h for help.")
 	sys.exit(0)
 
-version = "1.1"
-print "gateway-finder v%s http://pentestmonkey.net/tools/gateway-finder" % version
-print
-print "[+] Using interface %s (-I to change)" % options.interface
+version = "1.2"
+print("Slightly imporved original gateway-finder")
+
+print("[+] Using interface %s (-I to change)"% options.interface)
+
+# Load next-hop mac address
 macfh = open(options.macfile, 'r')
 lines = map(lambda x: x.rstrip(), macfh.readlines())
 macs = []
@@ -68,12 +71,14 @@ for line in lines:
 			if m and m.group(1) and m.group(2):
 				ipofmac[m.group(1).upper()] = m.group(2)
 
+# Load target IP addresses
+
 macs = ipofmac.keys()
 
-print "[+] Found %s MAC addresses in %s" % (len(macs), options.macfile)
+print("[+] Found %s MAC addresses in %s" % (len(macs), options.macfile))
 
 if len(macs) == 0:
-	print "[E] No MAC addresses found in %s" % options.macfile
+	print("[E] No MAC addresses found in %s" % options.macfile)
 	sys.exit(0)
 
 def handler(signum, frame):
@@ -82,7 +87,7 @@ def handler(signum, frame):
 
 def vprint(message):
 	if options.verbose:
-		print "[-] %s" % message
+		print("[-] %s" % message)
 
 signal.signal(signal.SIGTERM, handler)
 signal.signal(signal.SIGINT, handler)
@@ -95,22 +100,22 @@ def processreply(p):
 				if p[IPerror].proto == 1: # response to ICMP packet
 					seq = p[ICMP][ICMPerror].seq
 					vprint("Received reply: %s" % p.summary())
-					print "[+] %s" % packets[seq]['message']
+					print("[+] %s" % packets[seq]['message'])
 				if p[IPerror].proto == 6: # response to TCP packet
 					seq = p[ICMP][TCPerror].seq
 					vprint("Received reply: %s" % p.summary())
-					print "[+] %s" % packets[seq]['message']
+					print("[+] %s" % packets[seq]['message'])
 			else:
 				seq = p[ICMP].seq
 				vprint("Received reply: %s" % p.summary())
-				print "[+] %s" % packets[seq]['message']
+				print("[+] %s" % packets[seq]['message'])
 		if p[IP].proto == 6: # TCP
 			if p[IP].src == options.ip and p[TCP].sport == 80:
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
 				vprint("Received reply: %s" % p.summary())
-				print "[+] %s" % packets[seq]['message']
+				print("[+] %s" % packets[seq]['message'])
 	except:
-		print "[E] Received unexpected packet.  Ignoring."
+		print("[E] Received unexpected packet.  Ignoring.")
 	return False
 
 # Build list of packets to send
@@ -148,8 +153,7 @@ if pid:
 	os.wait()
 	vprint("Parent exiting")
 
-	print "[+] Done"
-	print
+	print("[+] Done")
 	sys.exit(0)
 	
 else:
