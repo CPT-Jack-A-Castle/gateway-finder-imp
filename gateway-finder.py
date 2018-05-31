@@ -9,17 +9,70 @@ from time import sleep
 import signal
 from optparse import OptionParser
 
+def load_objects(object_type):
+	if object_type == 'mac':
+		object_name = 'MAC'
+		object_regex = '([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
+
+		options_load_file = options.macfile
+		options_load_string = options.mac
+
+	elif object_type == 'ip':
+		object_name = 'IP'
+		object_regex = '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
+
+		options_load_file = options.ipfile
+		options_load_string = options.ip
+	else:
+		sys.exit(0)
+
+	objects = []
+
+	if options_load_file:
+		# Load next-hop mac address
+		macfh = open(options_load_file, 'r')
+		lines = list(map(lambda x: x.rstrip(), macfh.readlines()))
+		#ipofmac = {}
+		print('[+] Parsing file with %s addresses' % object_name )
+		for i in range (len(lines)):
+		#for line in lines:
+			m = re.search(object_regex,lines[i])
+			if not m:
+				print('[-] \t%d. There is no %s address in this line: "%s"' % (i,object_name,lines[i]))
+			else:
+				print('[+] \t%d. Append %s: %s' % (i,object_name,m.group()))
+				#print('[+] Append mac: %s'% m)
+				objects.append(m.group())
+
+		print("[+] Found %s %s addresses in %s" % (len(objects),object_name,options_load_file))
+
+		if len(objects) == 0:
+			print("[E] No %s addresses found in %s" % (object_name,options_load_file))
+			sys.exit(0)
+
+	elif options_load_string:
+		m = re.search(object_regex,options_load_string)
+		if not m:
+			print('[E] Not valid %s address: "%s"' % (object_name, options_load_string))
+			sys.exit(0)
+		else:
+			print('[+] Using %s: %s' % (object_name,m.group()))
+			objects.append(m.group())
+
+	return(objects)
+
+
 def load_ips():
-	regex_mac = '([0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
+	regex_ip = '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
+	ips = []
+
+
 
 def load_macs():
-
 	regex_mac = '([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
-
 	macs = []
 	
 	if options.macfile:
-
 		# Load next-hop mac address
 		macfh = open(options.macfile, 'r')
 		lines = list(map(lambda x: x.rstrip(), macfh.readlines()))
@@ -53,26 +106,27 @@ def load_macs():
 
 	return(macs)
 
-def create_packets(macs):
+def create_packets(macs, ips):
 	# Build list of packets to send
 	seq = 0
 	packets = []
 	for mac in macs:
-		# Echo request, TTL=1
-		packets.append({ 'packet': Ether(dst=mac)/IP(dst=options.ip,ttl=1)/ICMP(seq=seq),'type': 'ping', 'dstip': options.ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, options.ip) })
-		seq = seq + 1
+		for ip in ips:
+			# Echo request, TTL=1
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/ICMP(seq=seq),'type': 'ping', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) })
+			seq = seq + 1
 
-		# TCP SYN to port 80, TTL=1
-		packets.append({ 'packet': Ether(dst=mac)/IP(dst=options.ip,ttl=1)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': options.ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, options.ip) })
-		seq = seq + 1
+			# TCP SYN to port 80, TTL=1
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) })
+			seq = seq + 1
 
-		# Echo request
-		packets.append({ 'packet': Ether(dst=mac)/IP(dst=options.ip)/ICMP(seq=seq),'type': 'ping', 'dstip': options.ip, 'dstmac': mac, 'seq': seq, 'message': 'We can ping %s via %s ' % (options.ip, mac) })
-		seq = seq + 1
+			# Echo request
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=seq),'type': 'ping', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can ping %s via %s ' % (ip, mac) })
+			seq = seq + 1
 
-		# TCP SYN to port 80
-		packets.append({ 'packet': Ether(dst=mac)/IP(dst=options.ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': options.ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 80 on %s via %s ' % (options.ip, mac) })
-		seq = seq + 1
+			# TCP SYN to port 80
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) })
+			seq = seq + 1
 
 	return(packets)
 
@@ -102,21 +156,24 @@ def processreply(p):
 		print("[E] Received unexpected packet.  Ignoring.")
 	return False
 
-def send_and_sniff():
+def send_and_sniff(packets):
 	pid = os.fork()
 	if pid:
 		# parent will send packets
-		sleep(2) # give child time to start sniffer
-		vprint("Parent processing sending packets...")
+		# give child time to start sniffer
+		sleep(2) 
+		print("Parent processing sending packets...")
 		for packet in packets:
 			sendp(packet['packet'], verbose=0)
-		vprint("Parent finished sending packets")
-		sleep(2) # give child time to capture last reply
-		vprint("Parent killing sniffer process")
+		print("Parent finished sending packets")
+
+		# give child time to capture last reply
+		sleep(2) 
+		print("Parent killing sniffer process")
 		os.kill(pid, signal.SIGTERM)
-		vprint("Parent reaping sniffer process")
+		print("Parent reaping sniffer process")
 		os.wait()
-		vprint("Parent exiting")
+		print("Parent exiting")
 
 		print("[+] Done")
 		sys.exit(0)
@@ -124,7 +181,7 @@ def send_and_sniff():
 	else:
 		# child will sniff
 		filter="ip and not arp and ((icmp and icmp[0] = 11 and icmp[1] = 0) or (src host %s and (icmp or (tcp and port 80))))" % options.ip
-		vprint("Child process sniffing on %s with filter '%s'" % (options.interface, filter))
+		print("Child process sniffing on %s with filter '%s'" % (options.interface, filter))
 	sniff(iface=options.interface, store = 0, filter=filter, prn=None, lfilter=lambda x: processreply(x))
 
 if __name__ == '__main__':
@@ -146,7 +203,7 @@ in macs.txt (ARP scan to find MACs)")
 	parser.add_option("-M", "--macfile", dest="macfile", help="File containing MAC addresses")
 	parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Verbose output")
 	parser.add_option("-6", "--ipv6", dest="Use ipv6 address", action="store_true", default=False, help="Use ipv6 addresss")
-	parser.add_option("-i", "--interface", dest="interface", default="eth0", help="Network interface to use")
+	parser.add_option("-i", "--interface", dest="interface", help="Network interface to use")
 
 	(options, args) = parser.parse_args()
 
@@ -162,10 +219,19 @@ in macs.txt (ARP scan to find MACs)")
 		print("[E] No target IP specified.  -h for help.")
 		sys.exit(0)
 
-	print("[+] Using interface %s (-I to change)"% options.interface)
+	if not (options.interface ):
+		print("[E] No interface specified.  -h for help.")
+		sys.exit(0)
 
+	print("[+] Using interface %s "% options.interface)
 
-	macs = load_macs()
-	#print(macs)
-	packets = create_packets(macs)
-	#print(packets)
+	macs = load_objects('mac')
+	ips = load_objects('ip')
+	#macs = load_macs()
+	print(macs)
+	print(ips)
+	packets = create_packets(macs,ips)
+	print(packets)
+	print(len(packets))
+
+	#send_and_sniff(packets)
