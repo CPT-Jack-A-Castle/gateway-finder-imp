@@ -38,13 +38,13 @@ def load_objects(object_type):
 		#for line in lines:
 			m = re.search(object_regex,lines[i])
 			if not m:
-				print('[-] \t%d. There is no %s address in this line: "%s"' % (i,object_name,lines[i]))
+				print('[-] \t%d. There are no %s address in this line: "%s"' % (i,object_name,lines[i]))
 			else:
 				print('[+] \t%d. Append %s: %s' % (i,object_name,m.group()))
 				#print('[+] Append mac: %s'% m)
 				objects.append(m.group())
 
-		print("[+] Found %s %s addresses in %s" % (len(objects),object_name,options_load_file))
+		print("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file))
 
 		if len(objects) == 0:
 			print("[E] No %s addresses found in %s" % (object_name,options_load_file))
@@ -60,51 +60,6 @@ def load_objects(object_type):
 			objects.append(m.group())
 
 	return(objects)
-
-
-def load_ips():
-	regex_ip = '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
-	ips = []
-
-
-
-def load_macs():
-	regex_mac = '([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
-	macs = []
-	
-	if options.macfile:
-		# Load next-hop mac address
-		macfh = open(options.macfile, 'r')
-		lines = list(map(lambda x: x.rstrip(), macfh.readlines()))
-		#ipofmac = {}
-		print('[+] Parsing file with MAC addresses')
-		for i in range (len(lines)):
-		#for line in lines:
-			m = re.search(regex_mac,lines[i])
-			if not m:
-				print('[-] \t%d. There is no MAC address in this line: "%s"' % (i,lines[i]))
-			else:
-				print('[+] \t%d. Append mac: %s' % (i,m.group()))
-				#print('[+] Append mac: %s'% m)
-				macs.append(m.group())
-
-
-		print("[+] Found %s MAC addresses in %s" % (len(macs), options.macfile))
-
-		if len(macs) == 0:
-			print("[E] No MAC addresses found in %s" % options.macfile)
-			sys.exit(0)
-
-	elif options.mac:
-		m = re.search(regex_mac,options.mac)
-		if not m:
-			print('[E] Not valid MAC address: "%s"' % options.mac)
-			sys.exit(0)
-		else:
-			print('[+] Used mac: %s' % m.group())
-			macs.append(m.group())
-
-	return(macs)
 
 def create_packets(macs, ips):
 	# Build list of packets to send
@@ -127,6 +82,16 @@ def create_packets(macs, ips):
 			# TCP SYN to port 80
 			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) })
 			seq = seq + 1
+
+			# TCP SYN to port 443
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) })
+			seq = seq + 1
+
+			# TCP SYN to port 23
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) })
+			seq = seq + 1
+
+
 
 	return(packets)
 
@@ -158,6 +123,7 @@ def processreply(p):
 
 def send_and_sniff(packets):
 	pid = os.fork()
+	print('\nPID',pid)
 	if pid:
 		# parent will send packets
 		# give child time to start sniffer
@@ -227,11 +193,8 @@ in macs.txt (ARP scan to find MACs)")
 
 	macs = load_objects('mac')
 	ips = load_objects('ip')
-	#macs = load_macs()
-	print(macs)
-	print(ips)
 	packets = create_packets(macs,ips)
-	print(packets)
-	print(len(packets))
+	#print(packets)
+	print("[+] Will be sending %d packets. %d packet[s] for each combinations" % (len(packets), len(packets)/(len(macs)*len(ips))))
 
-	#send_and_sniff(packets)
+	send_and_sniff(packets)
