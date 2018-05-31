@@ -5,6 +5,9 @@ This is a slightly improved version of an original [gateway-finder](https://gith
 
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
+
+![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder.png)
+
 Gateway-finder is a scapy script that will help you determine which of the systems on the local LAN has IP forwarding enabled and which can reach the Internet.
 
 This can be useful during Internal pentests when you want to quickly check for unauthorised routes to the Internet (e.g. rogue wireless access points) or routes to other Internal LANs.  It doesn't perform a hugely thorough check, but it is quick at least.  It's python, so it should be easy to modify to fit your needs.
@@ -19,7 +22,6 @@ You give the script the IP address of a system on the Internet you're trying to 
 
 It will report separately which systems send an ICMP "TTL exceeded in transit" message back (indicating that they're routers) and which respond to the probe (indicating that they're gateways to the Internet).
 
-![gw-finder-img](gw_finder.png)
 
 ## Install 
 
@@ -35,7 +37,8 @@ It will report separately which systems send an ICMP "TTL exceeded in transit" m
 	- `-D <file_with_IPs>` - use file with selected destination IPs
 	- `-i <interface_name>` - use selected network interface
 - examples
-	- `gateway-finder.py -d 8.8.8.8 -m de:ad:be:af:de:ad  -i enp0s31f6` - use selected next-hop MAC and selected destination IP
+	- `gateway-finder.py -d 8.8.8.8 -m de:ad:be:af:de:ad  -i enp0s31f6` 
+	use selected next-hop MAC and selected destination IP
 	- `gateway-finder.py -D dst_hosts.txt -M next_hop_macs.txt  -i wlp3s0` -  use selected next-hop MAC and file with selected destination IPs
 	- `gateway-finder.py -d  8.8.8.8 -M next_hop_macs.txt  -i eth0` - use file with next-hop MACs and file with selected destination IPs
 
