@@ -2,6 +2,11 @@ This is a slightly improved version of an original [gateway-finder](https://gith
 
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
+----
+**Current version: 1.6**
+
+----
+
 ## Info
 
 ![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder.png)
@@ -51,7 +56,7 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 - For IPv4
 	- `arp-scan`
 		- `arp-scan -l`
-		```
+		```bash
 		arp-scan -l | tee arp_scan_macs.txt
 
 
@@ -66,10 +71,18 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 		```
 	- `arp`
 		- `arp -a`
-		```
+		```bash
 		arp -a | tee arp_macs.txt
 
 		(10.10.2.1) at 1f:2e:39:d7:2f:04 [ether] on eth0
+		(10.10.2.3) at 1f:23:39:d8:2e:44 [ether] on eth0
+		```
+		- `arp` - filter only macs
+		```bash
+		arp -a | arp -a | cut -d ' ' -f 4 | tee arp_macs.txt
+
+		1f:2e:39:d7:2f:04
+		1f:23:39:d8:2e:44
 		```
 
 - For IPv6
@@ -85,6 +98,9 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 
 - [x] rewritten to python3 using modular approach 
 - [x] use file with IP addresses
-- [x] add a few
+- [x] nice color print
+- [x] fix regex mistakes 
+- [x] fix capture filter
+- [x] rewrite program to make it more readable and easy to custom
 - [ ] IPv6 support
 - [ ] develop a convenient way to add new network tests 

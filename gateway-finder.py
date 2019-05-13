@@ -16,12 +16,12 @@ import random
 def printc(string_to_print,color):
 
 	bcolors = {
-		"blue":'\033[94m',
 		"end":'\033[0m',
 		"green":'\033[92m',
 		"orange":'\033[93m',
-		'red':'\033[93m',
+		"blue":'\033[94m',
 		'purple':'\033[95m',
+		'red':'\033[91m',
 		'bold':'\033[1m',
 		'underline':'\033[4m'
 	}
@@ -59,17 +59,16 @@ def load_objects(object_type):
 		#for line in lines:
 			m = re.search(object_regex,lines[i])
 			if not m:
-				print('[-] \t%d. There are no %s address in this line: "%s"' % (i,object_name,lines[i]))
+				printc('[-] \t%d. There are no %s address in this line: "%s"' % (i,object_name,lines[i]),'orange')
 			else:
-				print('[+] \t%d. Append %s: %s' % (i,object_name,m.group()))
-				#print('[+] Append mac: %s'% m)
+				printc('[+] \t%d. Append %s: %s' % (i,object_name,m.group()),'green')
 				objects.append(m.group())
 
-		printc("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file),'blue')
-
 		if len(objects) == 0:
-			print("[E] No %s addresses found in %s" % (object_name,options_load_file))
+			printc("[E] No %s addresses found in %s" % (object_name,options_load_file),'red')
 			sys.exit(0)
+		else:
+			printc("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file),'blue')
 
 	elif options_load_string:
 		m = re.search(object_regex,options_load_string)
@@ -80,6 +79,8 @@ def load_objects(object_type):
 			printc('[+] Using %s: %s' % (object_name,m.group()),'blue')
 			objects.append(m.group())
 
+	# for debug
+	# print(objects)
 	return(objects)
 
 def create_packets(macs, ips):
@@ -193,7 +194,7 @@ def processreply(p,packets):
 		print("[E] Received unexpected packet (IP type = %s). Ignoring."%p[IP].proto)
 	return False
 
-def send_and_sniff(packets, verbosity_level):
+def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 	pid = os.fork()
 	print('\nPID',pid)
 
@@ -223,11 +224,16 @@ def send_and_sniff(packets, verbosity_level):
 		# icmp[0] = 11 - that code meants icmp type "Time-to-live exceed"
 		# icmp[0] = 0 - that code meants icmp type "Reply"
 		filter_part_icmp ="icmp[0] = 11 or icmp[0] = 0"
-		filter_part_tcp="src host %s" % (options.ip)
+		#filter_part_tcp="src host %s" % (options.ip)
+		filter_part_tcp=""
+		for i in range(len(ip_addresses_dst)-1):
+			filter_part_tcp += "(src host %s) or " % ip_addresses_dst[i]
+		filter_part_tcp += "(src host %s)" % ip_addresses_dst[i]
+
 		filter_part_tcp_80="tcp and port 80"
 		filter_part_tcp_443="tcp and port 443"
 		filter_part_tcp_23="tcp and port 23"
-		filter_string = "%s and ((%s) or (%s and ( (%s) or (%s) or (%s) ) ))" %(
+		filter_string = "(%s) and ((%s) or ( (%s) and ( (%s) or (%s) or (%s) ) ))" %(
 			filter_part_initail,
 			filter_part_icmp,
 			filter_part_tcp, 
@@ -245,7 +251,7 @@ def send_and_sniff(packets, verbosity_level):
 
 if __name__ == '__main__':
 
-	version = "1.5"
+	version = "1.6"
 	printc("\nGFI. Gateway Finder Improved. Version %s\n" % version,'bold')
 
 	parser = OptionParser(usage=\
@@ -290,13 +296,13 @@ in macs.txt (ARP scan to find MACs)")
 	if options.verbose:	verbosity_level = 1
 	printc("[+] Using verbose: %s"%options.verbose,'blue')
 
-	macs = load_objects('mac')
-	ips = load_objects('ip')
-	packets = create_packets(macs, ips)
+	mac_addrs_dst = load_objects('mac')
+	ip_addrs_dst = load_objects('ip')
+	packets = create_packets(mac_addrs_dst, ip_addrs_dst)
 
 	# for debug
 	#print('packets',packets)
 
-	print("[+] Will be sending %d packets. %d packet[s] for each combinations" % (len(packets), len(packets)/(len(macs)*len(ips))))
+	print("[+] Will be sending %d packets. %d packet[s] for each combinations" % (len(packets), len(packets)/(len(mac_addrs_dst)*len(ip_addrs_dst))))
 
-	send_and_sniff(packets,verbosity_level)
+	send_and_sniff(packets, ip_addrs_dst, verbosity_level)
