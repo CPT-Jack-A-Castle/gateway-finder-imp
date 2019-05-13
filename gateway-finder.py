@@ -106,18 +106,17 @@ def create_packets(macs, ips):
 				'type': 'ping', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'message': '%s  appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
+				'message': '%s - ICMP test - appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
 				}
 
 			# Echo request
 			icmp_seq = random.randint(0,65535)
 			packets[icmp_seq]={ 
-				'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=seq),
+				'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=icmp_seq),
 				'type': 'ping', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'seq': icmp_seq, 
-				'message': '%s - successfully ping host %s (ping %s via %s)' % (mac,ip,ip,mac) 
+				'message': '%s - ICMP test - successfully ping host %s (ping %s via %s)' % (mac,ip,ip,mac) 
 				}
 
 			# =========================== TCP creation =========================== 
@@ -128,10 +127,8 @@ def create_packets(macs, ips):
 				'type': 'tcpsyn', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'seq': tcp80_ttl1_syn_seq, 
-				'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
+				'message': '%s - TCP test - appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
 				}
-
 
 			# TCP SYN to port 80
 			tcp80_syn_seq = random.randint(0,65535)
@@ -140,8 +137,7 @@ def create_packets(macs, ips):
 				'type': 'tcpsyn', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'seq': tcp80_syn_seq, 
-				'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) 
+				'message': '%s - TCP test - we can reach TCP port 80 on %s via specified MAC ' % (mac, ip) 
 				}
 
 			# TCP SYN to port 443
@@ -151,8 +147,7 @@ def create_packets(macs, ips):
 				'type': 'tcpsyn',
 				'dstip': ip,
 				'dstmac': mac,
-				'seq': tcp443_syn_seq,
-				'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) 
+				'message': '%s - TCP test - we can reach TCP port 443 on %s via specified MAC ' % (mac, ip) 
 				}
 
 			# TCP SYN to port 23
@@ -162,39 +157,38 @@ def create_packets(macs, ips):
 				'type': 'tcpsyn',
 				'dstip': ip,
 				'dstmac': mac,
-				'seq': tcp23_syn_seq,
-				'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) 
+				'message': '%s - TCP - we can reach TCP port 23 on %s via specified MAC ' % (mac, ip) 
 				}
 
 	return(packets)
+
+def expand(x):
+	yield x.name
+	while x.payload:
+		x = x.payload
+		yield x.name
 
 def processreply(p,packets):
 	# This might error if the packet isn't what we're expecting
 	try:
 		# ========== ICMP processing ==========
-		if p[IP].proto == 1:
-			if p[ICMP].type == 11 and p[ICMP].code == 0:
-
-				if p[IPerror].proto == 1: # response to ICMP packet
-					seq = p[ICMP][ICMPerror].seq
-					printc("[+] %s" % packets[seq]['message'],'green')
-					print("\tReceived reply: %s" % p.summary())
-
-				if p[IPerror].proto == 6: # response to TCP packet
-					seq = p[ICMP][TCPerror].seq
-					printc("[+] %s" % packets[seq]['message'],'green')
-					print("\tReceived reply: %s" % p.summary())
-			else:
+		if p[IP].proto == 1:  
+			if p[ICMP].type == 0: # reply to ICMP packet
 				seq = p[ICMP].seq
-				printc("[+] %s" % packets[seq]['message'],'green')
-				print("\tReceived reply: %s" % p.summary())
+
+			elif p[ICMP].type == 11 and p[ICMP].code == 0:
+				if p[IPerror].proto == 1: # response to ICMP with TTL=1
+					seq = p[ICMP][ICMPerror].seq
+				elif p[IPerror].proto == 6: # response to TCP with TTL=1
+					seq = p[IPerror].seq	
 
 		# ========== TCP processing ==========
 		elif p[IP].proto == 6: 
 			if p[IP].src == options.ip and (p[TCP].sport in (80,443,23)):
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
-				printc("[+] %s" % packets[seq]['message'],'green')
-				print("\tReceived reply: %s" % p.summary())
+
+		printc("[+] %s" % packets[seq]['message'],'green')
+		print("\tReceived reply: %s" % p.summary())
 	except:
 		print("[E] Received unexpected packet (IP type = %s). Ignoring."%p[IP].proto)
 	return False
@@ -251,7 +245,7 @@ def send_and_sniff(packets, verbosity_level):
 
 if __name__ == '__main__':
 
-	version = "1.4"
+	version = "1.5"
 	printc("\nGFI. Gateway Finder Improved. Version %s\n" % version,'bold')
 
 	parser = OptionParser(usage=\
