@@ -9,6 +9,22 @@ from time import sleep
 import signal
 from optparse import OptionParser
 
+def printc(string_to_print,color):
+
+	bcolors = {
+		"blue":'\033[94m',
+		"end":'\033[0m',
+		"green":'\033[92m',
+		"orange":'\033[93m',
+		'red':'\033[93m',
+		'purple':'\033[95m',
+		'bold':'\033[1m',
+		'underline':'\033[4m'
+	}
+
+	print(bcolors[color] + string_to_print + bcolors['end'])
+
+
 def load_objects(object_type):
 	if object_type == 'mac':
 		object_name = 'MAC'
@@ -19,7 +35,8 @@ def load_objects(object_type):
 
 	elif object_type == 'ip':
 		object_name = 'IP'
-		object_regex = '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])'
+		object_regex = '(([2][5][0-5]\.)|([2][0-4][0-9]\.)|([0-1]?[0-9]?[0-9]\.)){3}(([2][5][0-5])|([2][0-4][0-9])|([0-1]?[0-9]?[0-9]))'
+
 
 		options_load_file = options.ipfile
 		options_load_string = options.ip
@@ -44,7 +61,7 @@ def load_objects(object_type):
 				#print('[+] Append mac: %s'% m)
 				objects.append(m.group())
 
-		print("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file))
+		printc("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file),'blue')
 
 		if len(objects) == 0:
 			print("[E] No %s addresses found in %s" % (object_name,options_load_file))
@@ -53,10 +70,10 @@ def load_objects(object_type):
 	elif options_load_string:
 		m = re.search(object_regex,options_load_string)
 		if not m:
-			print('[E] Not valid %s address: "%s"' % (object_name, options_load_string))
+			printc('[E] Not valid %s address: "%s"' % (object_name, options_load_string),'orange')
 			sys.exit(0)
 		else:
-			print('[+] Using %s: %s' % (object_name,m.group()))
+			printc('[+] Using %s: %s' % (object_name,m.group()),'blue')
 			objects.append(m.group())
 
 	return(objects)
@@ -71,24 +88,24 @@ def create_packets(macs, ips):
 			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/ICMP(seq=seq),'type': 'ping', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) })
 			seq = seq + 1
 
-			# TCP SYN to port 80, TTL=1
-			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) })
-			seq = seq + 1
-
 			# Echo request
 			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=seq),'type': 'ping', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can ping %s via %s ' % (ip, mac) })
 			seq = seq + 1
 
+			# TCP SYN to port 80, TTL=1
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=seq,dport=80), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) })
+			seq = seq + 1
+
 			# TCP SYN to port 80
-			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) })
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq,dport=80), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) })
 			seq = seq + 1
 
 			# TCP SYN to port 443
-			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) })
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq,dport=443), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) })
 			seq = seq + 1
 
 			# TCP SYN to port 23
-			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) })
+			packets.append({ 'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=seq,dport=23), 'type': 'tcpsyn', 'dstip': ip, 'dstmac': mac, 'seq': seq, 'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) })
 			seq = seq + 1
 
 
@@ -103,20 +120,20 @@ def processreply(p):
 				if p[IPerror].proto == 1: # response to ICMP packet
 					seq = p[ICMP][ICMPerror].seq
 					print("Received reply: %s" % p.summary())
-					print("[+] %s" % packets[seq]['message'])
+					printc("[+] %s" % packets[seq]['message'],'green')
 				if p[IPerror].proto == 6: # response to TCP packet
-					seq = p[ICMP][TCPerror].seq
+					seq = p[ICMP][TCPerror].seqs
 					print("Received reply: %s" % p.summary())
-					print("[+] %s" % packets[seq]['message'])
+					printc("[+] %s" % packets[seq]['message'],'green')
 			else:
 				seq = p[ICMP].seq
 				print("Received reply: %s" % p.summary())
-				print("[+] %s" % packets[seq]['message'])
+				printc("[+] %s" % packets[seq]['message'],'green')
 		if p[IP].proto == 6: # TCP
 			if p[IP].src == options.ip and p[TCP].sport == 80:
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
 				print("Received reply: %s" % p.summary())
-				print("[+] %s" % packets[seq]['message'])
+				printc("[+] %s" % packets[seq]['message'],'green')
 	except:
 		print("[E] Received unexpected packet.  Ignoring.")
 	return False
@@ -141,7 +158,7 @@ def send_and_sniff(packets):
 		os.wait()
 		print("Parent exiting")
 
-		print("[+] Done")
+		printc("[+] Done",'green')
 		sys.exit(0)
 		
 	else:
@@ -152,7 +169,7 @@ def send_and_sniff(packets):
 
 if __name__ == '__main__':
 
-	version = "1.2"
+	version = "1.3"
 	print("GFI. Gateway-finder-improved. Version %s" % version,'\n')
 
 	parser = OptionParser(usage=\
@@ -178,18 +195,18 @@ in macs.txt (ARP scan to find MACs)")
 	#print('(options.macfile or options.mac)',(options.macfile or options.mac))
 
 	if not (options.macfile or options.mac):
-		print("[E] No macs.txt specified.  -h for help.")
+		printc("[E] No macs.txt specified.  -h for help.",'red')
 		sys.exit(0)
 
 	if not (options.ipfile or options.ip):
-		print("[E] No target IP specified.  -h for help.")
+		printc("[E] No target IP specified.  -h for help.",'red')
 		sys.exit(0)
 
 	if not (options.interface ):
-		print("[E] No interface specified.  -h for help.")
+		printc("[E] No interface specified.  -h for help.",'red')
 		sys.exit(0)
 
-	print("[+] Using interface %s "% options.interface)
+	printc("[+] Using interface %s"%options.interface,'blue')
 
 	macs = load_objects('mac')
 	ips = load_objects('ip')
