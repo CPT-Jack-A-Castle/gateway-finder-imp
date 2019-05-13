@@ -28,11 +28,11 @@ It will report separately which systems send an ICMP "TTL exceeded in transit" m
 
 ## Install 
 
-`pip install -r requirements.txt`
+`pip3 install -r requirements.txt`
 
 ## Run
 
-- `gateway-finder-imp.py`
+- `sudo python3 gateway-finder-imp.py`
 	- `-h` - help
 	- `-M <MAC>` - use file with next-hop MACs 
 	- `-m <file_with_MACs>` - use selected next-hop MAC 
@@ -40,10 +40,10 @@ It will report separately which systems send an ICMP "TTL exceeded in transit" m
 	- `-D <file_with_IPs>` - use file with selected destination IPs
 	- `-i <interface_name>` - use selected network interface
 - examples
-	- `gateway-finder.py -d 8.8.8.8 -m de:ad:be:af:de:ad  -i enp0s31f6` 
+	- `gateway-finder-imp.py -d 8.8.8.8 -m de:ad:be:af:de:ad  -i enp0s31f6` 
 	use selected next-hop MAC and selected destination IP
-	- `gateway-finder.py -D dst_hosts.txt -M next_hop_macs.txt  -i wlp3s0` -  use selected next-hop MAC and file with selected destination IPs
-	- `gateway-finder.py -d  8.8.8.8 -M next_hop_macs.txt  -i eth0` - use file with next-hop MACs and file with selected destination IPs
+	- `gateway-finder-imp.py -D dst_hosts.txt -M next_hop_macs.txt  -i wlp3s0` -  use selected next-hop MAC and file with selected destination IPs
+	- `gateway-finder-imp.py -d  8.8.8.8 -M next_hop_macs.txt  -i eth0` - use file with next-hop MACs and file with selected destination IPs
 
 Tries to find a layer-3 gateway to the Internet.  Attempts to reach an IP
 address using ICMP ping and TCP SYN to port 80 via each potential gateway
