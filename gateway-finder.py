@@ -185,10 +185,11 @@ def processreply(p, packets, verbosity_level):
 
 		# ========== TCP processing ==========
 		elif p[IP].proto == 6: 
-			if p[IP].src == options.ip and (p[TCP].sport in (80,443,23)):
+			if (p[TCP].sport in (80,443,23)):
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
 
 		printc("[+] %s" % packets[seq]['message'],'green')
+		
 		if verbosity_level:
 			print("\tReceived reply: %s" % p.summary())
 	except:
