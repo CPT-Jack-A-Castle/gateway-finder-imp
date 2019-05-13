@@ -228,7 +228,7 @@ def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 		filter_part_tcp=""
 		for i in range(len(ip_addresses_dst)-1):
 			filter_part_tcp += "(src host %s) or " % ip_addresses_dst[i]
-		filter_part_tcp += "(src host %s)" % ip_addresses_dst[i]
+		filter_part_tcp += "(src host %s)" % ip_addresses_dst[len(ip_addresses_dst)-1]
 
 		filter_part_tcp_80="tcp and port 80"
 		filter_part_tcp_443="tcp and port 443"
