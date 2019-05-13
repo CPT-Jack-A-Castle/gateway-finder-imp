@@ -59,7 +59,7 @@ def load_objects(object_type):
 		#for line in lines:
 			m = re.search(object_regex,lines[i])
 			if not m:
-				printc('[-] \t%d. There are no %s address in this line: "%s"' % (i,object_name,lines[i]),'orange')
+				printc('[-] \t%d. This line does not contain valid %s address: "%s"' % (i,object_name,lines[i]),'orange')
 			else:
 				printc('[+] \t%d. Append %s: %s' % (i,object_name,m.group()),'green')
 				objects.append(m.group())
@@ -169,7 +169,7 @@ def expand(x):
 		x = x.payload
 		yield x.name
 
-def processreply(p,packets):
+def processreply(p, packets, verbosity_level):
 	# This might error if the packet isn't what we're expecting
 	try:
 		# ========== ICMP processing ==========
@@ -189,31 +189,38 @@ def processreply(p,packets):
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
 
 		printc("[+] %s" % packets[seq]['message'],'green')
-		print("\tReceived reply: %s" % p.summary())
+		if verbosity_level:
+			print("\tReceived reply: %s" % p.summary())
 	except:
-		print("[E] Received unexpected packet (IP type = %s). Ignoring."%p[IP].proto)
+		if verbosity_level:
+			print("[E] Received unexpected packet (IP type = %s). Ignoring."%p[IP].proto)
 	return False
 
 def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 	pid = os.fork()
-	print('\nPID',pid)
+
+	if verbosity_level: print('\nPID',pid)
 
 	if pid:
 		# parent will send packets
 		# give child time to start sniffer
 		sleep(2) 
 		printc("\n[I] Parent processing sending packets...",'purple')
+
+		verbose=0
+		if verbosity_level == 2: verbose=1
+		
 		for some_packet_seq in packets:
-			sendp(packets[some_packet_seq]['packet'], verbose=verbosity_level)
+			sendp(packets[some_packet_seq]['packet'], verbose=verbose)
 		printc("[I] Parent finished sending packets\n",'purple')
 
 		# give child time to capture last reply
 		sleep(2) 
-		print("Parent killing sniffer process")
+		printc("[I] Parent killing sniffer process",'purple')
 		os.kill(pid, signal.SIGTERM)
-		print("Parent reaping sniffer process")
+		printc("[I] Parent reaping sniffer process",'purple')
 		os.wait()
-		print("Parent exiting")
+		printc("[I] Parent exiting",'purple')
 
 		printc("[+] Done",'green')
 		sys.exit(0)
@@ -240,14 +247,12 @@ def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 			filter_part_tcp_80, 
 			filter_part_tcp_443,
 			filter_part_tcp_23)
-		#filter_string="ip and not arp and ((icmp and icmp[0] = 11 and icmp[1] = 0) or (src host %s and (icmp or (tcp and port 80))))" % (options.ip)
-		#              'ip and not arp ((icmp and icmp[0] = 11 and icmp[1] = 0) or (src host 87.250.250.242 and (tcp and port 80) or (tcp and port 443) or (tcp and port 23)))
-		#filter=""
 
-		print("Child process sniffing on %s with filter:"%options.interface)
-		printc("\t%s"%filter_string,"orange")
+		if verbosity_level:
+			print("Child process sniffing on %s with filter:" % options.interface)
+			printc("\t%s" % filter_string,"orange")
 
-	sniff(iface=options.interface, store = 0, filter=filter_string, prn=None, lfilter=lambda x: processreply(x,packets))
+	sniff(iface=options.interface, store = 0, filter=filter_string, prn=None, lfilter=lambda x: processreply(x, packets, verbosity_level))
 
 if __name__ == '__main__':
 
@@ -266,15 +271,12 @@ in macs.txt (ARP scan to find MACs)")
 	parser.add_option("-D", "--ipfile", dest="ipfile", help="File containing IP addresses to probe")
 	parser.add_option("-m", "--mac", dest="mac", help="Next hop MAC addresses")
 	parser.add_option("-M", "--macfile", dest="macfile", help="File containing MAC addresses")
-	parser.add_option("-v", "--verbose", dest="verbose", action="store_true", default=False, help="Verbose output")
+	parser.add_option("--v", dest="verbose", action="store_true", default=False, help="Verbose output")
+	parser.add_option("--vv", dest="verbosemax", action="store_true", default=False, help="More verbose output")
 	parser.add_option("-6", "--ipv6", dest="Use ipv6 address", action="store_true", default=False, help="Use ipv6 addresss")
 	parser.add_option("-i", "--interface", dest="interface", help="Network interface to use")
 
 	(options, args) = parser.parse_args()
-
-	#print(options.macfile)
-	#print(options.mac)
-	#print('(options.macfile or options.mac)',(options.macfile or options.mac))
 
 	if not (options.macfile or options.mac):
 		printc("[E] No macs.txt specified.  -h for help.",'red')
@@ -292,9 +294,10 @@ in macs.txt (ARP scan to find MACs)")
 
 
 	# Verbosity settings
-	verbosity_level = 0 
+	verbosity_level = 0
 	if options.verbose:	verbosity_level = 1
-	printc("[+] Using verbose: %s"%options.verbose,'blue')
+	elif options.verbosemax: verbosity_level = 2
+	printc("[+] Using verbose level: %s"%verbosity_level,'blue')
 
 	mac_addrs_dst = load_objects('mac')
 	ip_addrs_dst = load_objects('ip')

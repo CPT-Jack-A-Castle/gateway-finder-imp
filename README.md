@@ -102,5 +102,6 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 - [x] fix regex mistakes 
 - [x] fix capture filter
 - [x] rewrite program to make it more readable and easy to custom
+- [x] change verbosity
 - [ ] IPv6 support
 - [ ] develop a convenient way to add new network tests 
