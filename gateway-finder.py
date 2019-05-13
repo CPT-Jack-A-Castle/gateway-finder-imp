@@ -86,85 +86,100 @@ def create_packets(macs, ips):
 	# Build list of packets to send
 	seq = 0
 
-	packets = []
+	# packets = 
+	# {
+	# 	seq = {
+	# 		packet: Ether/IP/ICMP,
+	# 		dstip: 0.0.0.0,
+	# 		message : "smt"
+	# 	},
+
+	packets = {	}
 	for mac in macs:
 		for ip in ips:
 
-			# =========================== ICMP =========================== 
+			# =========================== ICMP creation =========================== 
 			# Echo request, TTL=1
-			packets.append({ 
-				'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/ICMP(seq=seq),
+			icmp_ttl1_seq = random.randint(0,65535)
+			packets[icmp_ttl1_seq]={ 
+				'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/ICMP(seq=icmp_ttl1_seq),
 				'type': 'ping', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'seq': 0, 
 				'message': '%s  appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
-				})
+				}
 
 			# Echo request
-			packets.append({
+			icmp_seq = random.randint(0,65535)
+			packets[icmp_seq]={ 
 				'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=seq),
 				'type': 'ping', 
 				'dstip': ip, 
 				'dstmac': mac, 
-				'seq': 10, 
+				'seq': icmp_seq, 
 				'message': '%s - successfully ping host %s (ping %s via %s)' % (mac,ip,ip,mac) 
-				})
+				}
 
-			# =========================== TCP =========================== 
+			# =========================== TCP creation =========================== 
 			# TCP SYN to port 80, TTL=1
 			tcp80_ttl1_syn_seq = random.randint(0,65535)
-			packets.append({ 
+			packets[tcp80_ttl1_syn_seq]={ 
 				'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=tcp80_ttl1_syn_seq,sport=random.randint(4096,65535),dport=80), 
 				'type': 'tcpsyn', 
 				'dstip': ip, 
 				'dstmac': mac, 
 				'seq': tcp80_ttl1_syn_seq, 
 				'message': '%s  appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
-				})
+				}
+
 
 			# TCP SYN to port 80
-			tcp80_syn_seq = 100
-			packets.append({ 
+			tcp80_syn_seq = random.randint(0,65535)
+			packets[tcp80_syn_seq]={
 				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp80_syn_seq,sport=random.randint(4096,65535),dport=80), 
 				'type': 'tcpsyn', 
 				'dstip': ip, 
 				'dstmac': mac, 
 				'seq': tcp80_syn_seq, 
 				'message': 'We can reach TCP port 80 on %s via %s ' % (ip, mac) 
-				})
+				}
 
 			# TCP SYN to port 443
 			tcp443_syn_seq = random.randint(0,65535)
-			packets.append({ 
+			packets[tcp443_syn_seq]={
 				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp443_syn_seq,sport=random.randint(4096,65535),dport=443), 
 				'type': 'tcpsyn',
 				'dstip': ip,
 				'dstmac': mac,
 				'seq': tcp443_syn_seq,
-				'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) })
+				'message': 'We can reach TCP port 443 on %s via %s ' % (ip, mac) 
+				}
 
 			# TCP SYN to port 23
 			tcp23_syn_seq = random.randint(0,65535)
-			packets.append({ 
+			packets[tcp23_syn_seq]={ 
 				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp23_syn_seq,sport=random.randint(4096,65535),dport=23), 
 				'type': 'tcpsyn',
 				'dstip': ip,
 				'dstmac': mac,
 				'seq': tcp23_syn_seq,
-				'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) })
+				'message': 'We can reach TCP port 23 on %s via %s ' % (ip, mac) 
+				}
 
 	return(packets)
 
 def processreply(p,packets):
 	# This might error if the packet isn't what we're expecting
 	try:
-		if p[IP].proto == 1: # ICMP
+		# ========== ICMP processing ==========
+		if p[IP].proto == 1:
 			if p[ICMP].type == 11 and p[ICMP].code == 0:
+
 				if p[IPerror].proto == 1: # response to ICMP packet
 					seq = p[ICMP][ICMPerror].seq
 					printc("[+] %s" % packets[seq]['message'],'green')
 					print("\tReceived reply: %s" % p.summary())
+
 				if p[IPerror].proto == 6: # response to TCP packet
 					seq = p[ICMP][TCPerror].seq
 					printc("[+] %s" % packets[seq]['message'],'green')
@@ -174,32 +189,28 @@ def processreply(p,packets):
 				printc("[+] %s" % packets[seq]['message'],'green')
 				print("\tReceived reply: %s" % p.summary())
 
-		elif p[IP].proto == 6: # TCP
-			print('!!!')
+		# ========== TCP processing ==========
+		elif p[IP].proto == 6: 
 			if p[IP].src == options.ip and (p[TCP].sport in (80,443,23)):
-				print(packets)
 				seq = p[TCP].ack - 1 # remote end increments our seq by 1
-				print('p[TCP].ack',p[TCP].ack)
-				print(packets[101])
 				printc("[+] %s" % packets[seq]['message'],'green')
 				print("\tReceived reply: %s" % p.summary())
-				print(p.info())
 	except:
-		print("[E] Received unexpected packet.  Ignoring.")
-		print('p[IP].proto',p[IP].proto)
+		print("[E] Received unexpected packet (IP type = %s). Ignoring."%p[IP].proto)
 	return False
 
 def send_and_sniff(packets, verbosity_level):
 	pid = os.fork()
 	print('\nPID',pid)
+
 	if pid:
 		# parent will send packets
 		# give child time to start sniffer
 		sleep(2) 
-		print("Parent processing sending packets...")
-		for packet in packets:
-			sendp(packet['packet'], verbose=verbosity_level)
-		print("Parent finished sending packets")
+		printc("\n[I] Parent processing sending packets...",'purple')
+		for some_packet_seq in packets:
+			sendp(packets[some_packet_seq]['packet'], verbose=verbosity_level)
+		printc("[I] Parent finished sending packets\n",'purple')
 
 		# give child time to capture last reply
 		sleep(2) 
@@ -234,14 +245,14 @@ def send_and_sniff(packets, verbosity_level):
 		#filter=""
 
 		print("Child process sniffing on %s with filter:"%options.interface)
-		printc("\t%s\n"%filter_string,"orange")
+		printc("\t%s"%filter_string,"orange")
 
 	sniff(iface=options.interface, store = 0, filter=filter_string, prn=None, lfilter=lambda x: processreply(x,packets))
 
 if __name__ == '__main__':
 
-	version = "1.3"
-	print("GFI. Gateway-finder-improved. Version %s" % version,'\n')
+	version = "1.4"
+	printc("\nGFI. Gateway Finder Improved. Version %s\n" % version,'bold')
 
 	parser = OptionParser(usage=\
 "Usage: %prog -d <ip_address> -m <mac_addr_of_next_hop> -i <interface>\n\n\
@@ -289,7 +300,9 @@ in macs.txt (ARP scan to find MACs)")
 	ips = load_objects('ip')
 	packets = create_packets(macs, ips)
 
-	print('packets',packets)
+	# for debug
+	#print('packets',packets)
+
 	print("[+] Will be sending %d packets. %d packet[s] for each combinations" % (len(packets), len(packets)/(len(macs)*len(ips))))
 
 	send_and_sniff(packets,verbosity_level)
