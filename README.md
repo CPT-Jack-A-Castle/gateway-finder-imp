@@ -4,7 +4,7 @@ New version rebuilt with python3 and support for files with MACs/IPs
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
 ----
-**Current version: 1.7**
+**Current version: 1.8**
 
 ----
 
@@ -26,6 +26,7 @@ You give the script the IP address of a system on the Internet you're trying to 
 
 It will report separately which systems send an ICMP "TTL exceeded in transit" message back (indicating that they're routers) and which respond to the probe (indicating that they're gateways to the Internet).
 
+You can specify your own ports now!
 
 ## Install 
 
@@ -40,11 +41,17 @@ It will report separately which systems send an ICMP "TTL exceeded in transit" m
 	- `-d <IP>` - use selected destination IPs
 	- `-D <file_with_IPs>` - use file with selected destination IPs
 	- `-i <interface_name>` - use selected network interface
+	- `-p <port_1> <port_2> ... <port_n>` - use ports
+	- `--v` - verbose mode
+	- `--vv` - maximum verbosity
 - examples
 	- `gateway-finder-imp.py -d 8.8.8.8 -m de:ad:be:af:de:ad  -i enp0s31f6` 
 	use selected next-hop MAC and selected destination IP
 	- `gateway-finder-imp.py -D dst_hosts.txt -M next_hop_macs.txt  -i wlp3s0` -  use selected next-hop MAC and file with selected destination IPs
-	- `gateway-finder-imp.py -d  8.8.8.8 -M next_hop_macs.txt  -i eth0` - use file with next-hop MACs and file with selected destination IPs
+	- `gateway-finder-imp.py -d  8.8.8.8 -M next_hop_macs.txt -i eth0` - use file with next-hop MACs and file with selected destination IPs
+	- `gateway-finder-imp.py -D file_with_dst_IPs.txt -M file_with_nex_hop_MACs.txt -i eth1 -p 22 443 80 8080 23`
+	- `gateway-finder-imp.py -d 2a00:1450:4010:c05::64 -M mac_with_ipv6_0.txt -i wlp3s0 -p 443 80 -6 --vTries to find a layer-3 gateway to the Internet.  Attempts to reach an IP`
+
 
 Tries to find a layer-3 gateway to the Internet.  Attempts to reach an IP
 address using ICMP ping and TCP SYN to port 80 via each potential gateway
@@ -87,7 +94,6 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 		```
 
 
-
 ### RoadMap
 
 - [x] Rewritten on python3 
@@ -100,6 +106,6 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 - [x] `[output]` - Nice color print - part 2
 - [x] `[feature]` - Read input MAC file with macs and corresponding IPs
 - [x] `[output]` - Print gw MAC and IP 
+- [x] `[feature]` develop a convenient way to add new network tests 
+- [x] `[feature]` - add support of checks to custom ports
 - [ ] `[feature]` IPv6 support
-- [ ] `[feature]` develop a convenient way to add new network tests 
-- [] `[feature]` - add support of checks to custom ports

@@ -4,13 +4,12 @@ import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 
-#from scapy.all import Ether,IP,ICMP,TCP,sendp,sniff
 import os
 import sys
 import re
 from time import sleep
 import signal
-from optparse import OptionParser
+import argparse
 import random
 
 def printc(string_to_print,color):
@@ -96,7 +95,7 @@ def load_objects_new(options):
 				printc('[-] \t%d. This line does not contain valid MAC: "%s"' % (i,paint_s(lines[i],'orange')) )
 
 		if len(addresses['dst_macs'] ) != 0:
-			printc("[I] Will be using %d gateway MAC addresses" % len(addresses['dst_macs'] ),'purple')
+			printc("[I] Will be using %d gateway MAC addresses" % len(addresses['dst_macs'] ),'green')
 		else:
 			princ("[E] There are no valid MAC addresses in a file",'red')
 			sys.exit(0)
@@ -140,7 +139,7 @@ def load_objects_new(options):
 
 
 		if len(addresses['dst_ips'] ) != 0:
-			printc("[I] Will be using %d destination %s addresses " % (len(addresses['dst_ips']),iptype),'purple')
+			printc("[I] Will be using %d destination %s addresses " % (len(addresses['dst_ips']),iptype),'blue')
 		else:
 			printc("[E] There are no valid %s addresses in a file"%iptype,'red')
 			sys.exit(0)
@@ -156,26 +155,26 @@ def load_objects_new(options):
 			)
 
 		else:
-			print(paint_s('[E] Not valid destination IP: "%s"' % options.ip,'red') )
+			print(paint_s('[E] Not valid destination %s: "%s"' % (iptype, options.ip),'red') )
 			sys.exit(0)
 
 	return(addresses)
 
-def create_single_packet(options, single_packet_type, seq, ip_dst, gw_mac, gw_ip, ttl, port_dst):
+def create_single_packet(args, single_packet_type, seq, ip_dst, gw_mac, gw_ip, ttl, port_dst):
 
 
 	# =========================== ICMPv4 creation =========================== 
 	if single_packet_type == "icmp":
 
 		# ====== Create scapy packet ======
-		if not options.ipv6:
+		if not args.ipv6:
 			single_packet_scapy = \
-				Ether(src=get_if_hwaddr(options.interface),dst=gw_mac)/ \
+				Ether(src=get_if_hwaddr(args.interface),dst=gw_mac)/ \
 				IP(dst=ip_dst,ttl=ttl)/ \
 				ICMP(seq=seq)
 		else:
 			single_packet_scapy = \
-				Ether(src=get_if_hwaddr(options.interface),dst=gw_mac)/ \
+				Ether(src=get_if_hwaddr(args.interface),dst=gw_mac)/ \
 				IPv6(dst=ip_dst)/ \
 				ICMPv6EchoRequest()
 
@@ -203,14 +202,14 @@ def create_single_packet(options, single_packet_type, seq, ip_dst, gw_mac, gw_ip
 	if single_packet_type == "tcp":
 
 		# ====== Create scapy packet ======
-		if not options.ipv6:
+		if not args.ipv6:
 			single_packet_scapy = \
-				Ether(src=get_if_hwaddr(options.interface),dst=gw_mac)/ \
+				Ether(src=get_if_hwaddr(args.interface),dst=gw_mac)/ \
 				IP(dst=ip_dst,ttl=ttl)/ \
 				TCP(seq=seq,sport=random.randint(2048,65535),dport=port_dst)
 		else:
 			single_packet_scapy = \
-				Ether(src=get_if_hwaddr(options.interface),dst=gw_mac)/ \
+				Ether(src=get_if_hwaddr(args.interface),dst=gw_mac)/ \
 				IPv6(dst=ip_dst)/ \
 				TCP(seq=seq,sport=random.randint(2048,65535),dport=port_dst)
 
@@ -245,24 +244,7 @@ def create_single_packet(options, single_packet_type, seq, ip_dst, gw_mac, gw_ip
 
 	return(single_packet)
 
-
-
-def create_for_packet_uniq_seq(packets):
-
-	# Create uniq seq number
-	# it is needed because 
-	# filtration of packets when sniffing
-	# absolutely depends on a seq number
-	# not a brilliant idea - I know
-	stopper = 0 
-	seq = random.randint(0,65535)
-	while seq not in packets.keys() and stopper < 2**16:
-		seq = random.randint(0,65535)
-		stopper +=1
-	print('seq invoke')
-	return(seq)
-
-def create_packets(macs,checks):
+def create_packets(args,addresses,checks):
 	# Build list of packets to send
 	seq = 0
 
@@ -283,7 +265,7 @@ def create_packets(macs,checks):
 
 			for check in checks:
 
-				if options.verbosemax:
+				if args.verbosemax:
 					print(mac_dict,ip)
 
 				# Create uniq seq number
@@ -296,7 +278,7 @@ def create_packets(macs,checks):
 					seq = random.randint(0,65535)
 
 				new_single_packet_check = create_single_packet(
-					options=options, 
+					args=args, 
 					single_packet_type=check['type'],
 					ttl=check['ttl'],
 					seq=seq,
@@ -308,12 +290,6 @@ def create_packets(macs,checks):
 				packets[seq] = new_single_packet_check
 
 	return(packets)
-
-def expand(x):
-	yield x.name
-	while x.payload:
-		x = x.payload
-		yield x.name
 
 def processreply(p, packets, verbosity_level):
 	# This might error if the packet isn't what we're expecting
@@ -376,7 +352,7 @@ def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 		# icmp[0] = 11 - that code meants icmp type "Time-to-live exceed"
 		# icmp[0] = 0 - that code meants icmp type "Reply"
 		filter_part_icmp ="icmp[0] = 11 or icmp[0] = 0"
-		#filter_part_tcp="src host %s" % (options.ip)
+		#filter_part_tcp="src host %s" % (args.ip)
 		filter_part_tcp=""
 		for i in range(len(ip_addresses_dst)-1):
 			filter_part_tcp += "(src host %s) or " % ip_addresses_dst[i]
@@ -394,12 +370,12 @@ def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 			filter_part_tcp_23)
 
 		if verbosity_level:
-			print("Child process sniffing on %s with filter:" % options.interface)
+			print("Child process sniffing on %s with filter:" % args.interface)
 			printc("\t%s" % filter_string,"orange")
 
-	sniff(iface=options.interface, store = 0, filter=filter_string, prn=None, lfilter=lambda x: processreply(x, packets, verbosity_level))
+	sniff(iface=args.interface, store = 0, filter=filter_string, prn=None, lfilter=lambda x: processreply(x, packets, verbosity_level))
 
-def info_about_verbosity(options):
+def info_about_verbosity(args):
 
 	# Verbosity settings
 
@@ -410,95 +386,134 @@ def info_about_verbosity(options):
 	}
 
 	verbosity_level = 0
-	if options.verbose:	verbosity_level = 1
-	elif options.verbosemax: verbosity_level = 2
+	if args.verbose:	verbosity_level = 1
+	elif args.verbosemax: verbosity_level = 2
 	print("[+] Using verbose level: %s" % paint_s(verbosity_names[verbosity_level],'purple'))
 
 	return(verbosity_level)
 
-def info_about_ip_version(options):
+def info_about_ip_version(args):
 
-	if options.ipv6:
+	if args.ipv6:
 		use_ip_version = "IPv6"
+		printc("[+] Script cannot sniff IPv6 at the moment, you have to do it manually ",'red')
 	else:
 		use_ip_version = "IPv4"
 
 
-	print("[+] Using: %s version" % paint_s(use_ip_version,'purple'))
+	print("[+] Using network protocol: %s version" % paint_s(use_ip_version,'purple'))
 
-def info_check_options(options):
+def info_check_options(args):
 
-	if not (options.macfile or options.mac):
+	if not (args.macfile or args.mac):
 		printc("[E] No macs.txt specified.  -h for help.",'red')
 		sys.exit(0)
 
-	if not (options.ipfile or options.ip):
+	if not (args.ipfile or args.ip):
 		printc("[E] No target IP specified.  -h for help.",'red')
 		sys.exit(0)
 
-	if not (options.interface ):
+	if not (args.interface ):
 		printc("[E] No interface specified.  -h for help.",'red')
 		sys.exit(0)
 
-	print("[+] Using interface: %s" % paint_s(options.interface,'purple'))
+	print("[+] Using interface: %s" % paint_s(args.interface,'purple'))
 
-if __name__ == '__main__':
+def load_checks(args):
 
-	version = "1.7"
-	printc("\nGFI. Gateway Finder Improved. Version %s\n" % version,'bold')
-
-	parser = OptionParser(usage=\
-"Usage: %prog -d <ip_address> -m <mac_addr_of_next_hop> -i <interface>\n\n\
-Ex1:\t%prog -d 8.8.8.8 -m de:ad:be:af:de:ad	-i wlp3s0 \n\
-Ex2:\t%prog -D file_with_dst_IPs.txt -m de:ad:be:af:de:ad -i eth0 \n\
-Ex3:\t%prog -D file_with_dst_IPs.txt -M file_with_nex_hop_MACs.txt -i ppp0 \n\n\
-Tries to find a layer-3 gateway to the Internet.  Attempts to reach an IP\n\
-address using: ICMP ping and TCP SYN to port 80/443/23 via each potential gateway\n" )
-	parser.add_option("-d", "--ip", dest="ip", help="Internet IP to probe")
-	parser.add_option("-D", "--ipfile", dest="ipfile", help="File containing IP addresses to probe")
-	parser.add_option("-m", "--mac", dest="mac", help="Next hop MAC addresses")
-	parser.add_option("-M", "--macfile", dest="macfile", help="File containing MAC addresses")
-	parser.add_option("--v", dest="verbose", action="store_true", default=False, help="Verbose output")
-	parser.add_option("--vv", dest="verbosemax", action="store_true", default=False, help="More verbose output")
-	parser.add_option("-6", "--ipv6", dest="ipv6", action="store_true", default=False, help="Use ipv6 addresss")
-	parser.add_option("-i", "--interface", dest="interface", help="Network interface to use")
-	parser.add_option("-p","--ports",dest="ports", default=False,help="ports that will be used tor TCP SYN ttl 255 test")
-
-	(options, args) = parser.parse_args()
-
-	info_check_options(options)
-
-	verbosity_level = info_about_verbosity(options)
-	info_about_ip_version(options)
-
-	addresses = load_objects_new(options)
-
-	checks = [
+	checks_base = [
 		{'type':'icmp','ttl':1,'port':0},
 		{'type':'icmp','ttl':255,'port':0},
+		{'type':'tcp','ttl':1,'port':80}
+	]
+	checks_default = [
+		{'type':'icmp','ttl':1,'port':0},
+		{'type':'icmp','ttl':255,'port':0},
+		{'type':'tcp','ttl':1,'port':80},
 		{'type':'tcp','ttl':255,'port':80},
 		{'type':'tcp','ttl':255,'port':443}
 	]
 
-	packets = create_packets(addresses,checks)
+	if args.ports :
+		checks = checks_base
+		for port_dst in args.ports:
+			single_check = {'type':'tcp','ttl':255,'port':port_dst}
+			checks.append(single_check)
+	else:
+		checks = checks_default
+
+	num_of_checks = len(checks)
+	print(paint_s("[I] Will be using %d checks:"%num_of_checks,'purple'))
+	for i in range(num_of_checks):
+		if checks[i]['type'] == 'tcp':
+			print("\t%d. TCP  | TTL: %d | port.dst: %d "%(i,checks[i]['ttl'],checks[i]['port']))
+		elif checks[i]['type'] == 'icmp':
+			print("\t%d. ICMP | TTL: %d " % (i,checks[i]['ttl']) )
+
+	return(checks)
+
+
+if __name__ == '__main__':
+
+	version = "1.8"
+	printc("\nGFI. Gateway Finder Improved. Version %s\n" % version,'bold')
+
+	parser = argparse.ArgumentParser(usage=\
+"Usage: prog -d <ip_address> -m <mac_addr_of_next_hop> -i <interface>\n\n\
+Ex1:  ./gateway-finder-imp.py -d 8.8.8.8 -m de:ad:be:af:de:ad -i wlp3s0 \n\
+Ex2:  ./gateway-finder-imp.py -D file_with_dst_IPs.txt -m de:ad:be:af:de:ad -i eth0 \n\
+Ex3:  ./gateway-finder-imp.py -D file_with_dst_IPs.txt -M file_with_nex_hop_MACs.txt -i ppp0 \n\
+Ex4:  ./gateway-finder-imp.py -D file_with_dst_IPs.txt -M file_with_nex_hop_MACs.txt -i eth1 -p 22 443 80 8080 23\n\
+Ex5:  ./gateway-finder-imp.py -d 2a00:1450:4010:c05::64 -M mac_with_ipv6_0.txt -i wlp3s0 -p 443 80 -6 --v\n\n\
+Tries to find a layer-3 gateway to the Internet.  Attempts to reach an IP\n\
+address using: ICMP ping and TCP SYN to port 80/443/23 via each potential gateway\n" )
+
+	group_args_ip = parser.add_mutually_exclusive_group()
+	group_args_ip.add_argument("-d", dest="ip", help="Internet IP to probe")
+	group_args_ip.add_argument("-D", dest="ipfile", help="File containing IP addresses to probe")
+
+	group_args_mac = parser.add_mutually_exclusive_group()
+	group_args_mac.add_argument("-m", dest="mac", help="Next hop MAC addresses")
+	group_args_mac.add_argument("-M", dest="macfile", help="File containing MAC addresses")
+
+	group_args_verbose = parser.add_mutually_exclusive_group()
+	group_args_verbose.add_argument("--v", dest="verbose", action="store_true", default=False, help="Verbose output")
+	group_args_verbose.add_argument("--vv", dest="verbosemax", action="store_true", default=False, help="More verbose output")
+
+	parser.add_argument("-6", dest="ipv6", action="store_true", default=False, help="Use ipv6 addresss")
+	parser.add_argument("-i", dest="interface", help="Network interface to use")
+	parser.add_argument("-p", dest="ports",type=int,default=[],nargs='+',help="ports that will be used tor TCP SYN ttl 255 test")
+
+	args = parser.parse_args()
+
+	info_check_options(args)
+
+	verbosity_level = info_about_verbosity(args)
+	info_about_ip_version(args)
+
+	addresses = load_objects_new(args)
+
+	# Check - it is one single
+	# test for a gateway
+	checks = load_checks(args)
+
+	packets = create_packets(args=args,addresses=addresses,checks=checks)
 
 	# for debug
-	if options.verbosemax:
+	if args.verbosemax:
 		print('addresses\n',addresses,'\n')
 		for p in packets.keys():
 			print(p,packets[p])
 	#print('packets',packets)
 
 	num_of_packets_created = len(packets)
-	num_of_packets_per_combo = len(addresses['dst_macs'])*len(addresses['dst_ips']) 
-	num_of_checks = len(checks)
+	num_of_packets_per_combo = len(addresses['dst_macs'])*len(addresses['dst_ips'])
 
-	print("[I] Will be sending %s packets: %s packet[s] for each of %s check[s]" % 
+	printc("[I] Will be sending %s packets: %s packet[s] for an each check" % 
 		(
-			paint_s(num_of_packets_created,'purple'),
-			paint_s(num_of_packets_per_combo,'purple'),
-			paint_s(num_of_checks,'purple')
-		)
+			num_of_packets_created,
+			num_of_packets_per_combo
+		),'purple'
 	)
 
 	send_and_sniff(packets, addresses['dst_ips'], verbosity_level)
