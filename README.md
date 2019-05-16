@@ -4,7 +4,7 @@ New version rebuilt with python3 and support for files with MACs/IPs
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
 ----
-**Current version: 1.6**
+**Current version: 1.7**
 
 ----
 
@@ -53,9 +53,8 @@ address using ICMP ping and TCP SYN to port 80 via each potential gateway
 
 Use your favourite ARP scanning to identify systems on the local LAN. Save the output (I use to arp.txt in the example below).
 
-
 - For IPv4
-	- `arp-scan`
+	- `arp-scan -l`
 		- `arp-scan -l`
 		```bash
 		arp-scan -l | tee arp_scan_macs.txt
@@ -78,13 +77,16 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 		(10.10.2.1) at 1f:2e:39:d7:2f:04 [ether] on eth0
 		(10.10.2.3) at 1f:23:39:d8:2e:44 [ether] on eth0
 		```
-		- `arp` - filter only macs
-		```bash
-		arp -a | arp -a | cut -d ' ' -f 4 | tee arp_macs.txt
 
-		1f:2e:39:d7:2f:04
-		1f:23:39:d8:2e:44
+
+- For IPv6
+	- `ip` 
+		`ip -6 neighbor`
 		```
+		fe80::ca21:aabe:fdc6:d7c1 dev eth0 lladdr f9:42:64:d6:0a:d5 router STALE
+		```
+
+
 
 ### RoadMap
 
@@ -95,9 +97,9 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 - [x] Fix capture filter
 - [x] Rewrite program to make it more readable and easy to customize
 - [x] `[feature]` Add verbosity fature
-- [] `[output]` - Nice color print - part 2
-- [] `[feature]` - Read input MAC file with macs and corresponding IPs
-- [] `[output]` - Print 
+- [x] `[output]` - Nice color print - part 2
+- [x] `[feature]` - Read input MAC file with macs and corresponding IPs
+- [x] `[output]` - Print gw MAC and IP 
 - [ ] `[feature]` IPv6 support
 - [ ] `[feature]` develop a convenient way to add new network tests 
 - [] `[feature]` - add support of checks to custom ports
