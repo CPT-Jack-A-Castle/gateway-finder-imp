@@ -6,11 +6,13 @@ The homepage of original project is: [http://pentestmonkey.net/tools/gateway-fin
 ----
 **Current version: 1.8**
 
+![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder-imp-screenshot.png)
+
 ----
 
 ## Info
 
-![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder.png)
+![gw-finder-img](https://github.com/whitel1st/gateway-finder/blob/master/gw-finder-imp-illustration.png)
 
 Gateway-finder is a scapy script that will help you determine which of the systems on the local LAN has IP forwarding enabled and which can reach the Internet.
 
