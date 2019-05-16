@@ -1,4 +1,5 @@
-This is a slightly improved version of an original [gateway-finder](https://github.com/pentestmonkey/gateway-finder) with python3 and support of IPv6
+This is an improved version of original [Gateway-finder](https://github.com/pentestmonkey/gateway-finder).
+New version rebuilt with python3 and support for files with MACs/IPs
 
 The homepage of original project is: [http://pentestmonkey.net/tools/gateway-finder](http://pentestmonkey.net/tools/gateway-finder)
 
@@ -85,23 +86,18 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 		1f:23:39:d8:2e:44
 		```
 
-- For IPv6
-	- `ping6`
-		- `ping6 ff02::1`
-		- `ping6 ff02::2`
-		- `ping6 ff02::5`
-	- `nmap`
-		- `sudo nmap -6 -vv --script targets-ipv6-multicast-slaac.nse`
+### RoadMap
 
-
-### ToDo
-
-- [x] rewritten to python3 using modular approach 
-- [x] use file with IP addresses
-- [x] nice color print
-- [x] fix regex mistakes 
-- [x] fix capture filter
-- [x] rewrite program to make it more readable and easy to custom
-- [x] change verbosity
-- [ ] IPv6 support
-- [ ] develop a convenient way to add new network tests 
+- [x] Rewritten on python3 
+- [x] `[feature]` Use file with IP addresses
+- [x] `[output]` - Nice color print - part 1
+- [x] Fix regex mistakes 
+- [x] Fix capture filter
+- [x] Rewrite program to make it more readable and easy to customize
+- [x] `[feature]` Add verbosity fature
+- [] `[output]` - Nice color print - part 2
+- [] `[feature]` - Read input MAC file with macs and corresponding IPs
+- [] `[output]` - Print 
+- [ ] `[feature]` IPv6 support
+- [ ] `[feature]` develop a convenient way to add new network tests 
+- [] `[feature]` - add support of checks to custom ports

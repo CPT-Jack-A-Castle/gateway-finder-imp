@@ -28,62 +28,122 @@ def printc(string_to_print,color):
 
 	print(bcolors[color] + string_to_print + bcolors['end'])
 
+def paint_s(to_paint,color):
 
-def load_objects(object_type):
-	if object_type == 'mac':
-		object_name = 'MAC'
-		object_regex = '([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
+	bcolors = {
+		"end":'\033[0m',
+		"green":'\033[92m',
+		"orange":'\033[93m',
+		"blue":'\033[94m',
+		'purple':'\033[95m',
+		'red':'\033[91m',
+		'bold':'\033[1m',
+		'underline':'\033[4m'
+	}
+	return(bcolors[color] + str(to_paint) + bcolors['end'])
 
-		options_load_file = options.macfile
-		options_load_string = options.mac
 
-	elif object_type == 'ip':
-		object_name = 'IP'
-		object_regex = '(([2][5][0-5]\.)|([2][0-4][0-9]\.)|([0-1]?[0-9]?[0-9]\.)){3}(([2][5][0-5])|([2][0-4][0-9])|([0-1]?[0-9]?[0-9]))'
+def load_objects_new(options):
 
 
-		options_load_file = options.ipfile
-		options_load_string = options.ip
-	else:
-		sys.exit(0)
+	mac_regex = '([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2})'
+	ip_regex = '(([2][5][0-5]\.)|([2][0-4][0-9]\.)|([0-1]?[0-9]?[0-9]\.)){3}(([2][5][0-5])|([2][0-4][0-9])|([0-1]?[0-9]?[0-9]))'
 
-	objects = []
+	addresses = {
+		'dst_macs':[],
+		'dst_ips':[]
+	}
 
-	if options_load_file:
-		# Load next-hop mac address
-		macfh = open(options_load_file, 'r')
-		lines = list(map(lambda x: x.rstrip(), macfh.readlines()))
-		#ipofmac = {}
-		print('[+] Parsing file with %s addresses' % object_name )
+
+	if options.macfile:
+
+		# Load file with next-hop mac addresses
+		mac_file = open(options.macfile, 'r')
+		lines = list(map(lambda x: x.rstrip(), mac_file.readlines()))
+
+		print('[I] Parsing file with gateway MAC addresses: %s ' % paint_s(options.macfile,'green') )
 		for i in range (len(lines)):
-		#for line in lines:
-			m = re.search(object_regex,lines[i])
-			if not m:
-				printc('[-] \t%d. This line does not contain valid %s address: "%s"' % (i,object_name,lines[i]),'orange')
+
+			# If regex is true 
+			found_single_mac = re.search(mac_regex,lines[i])
+			found_single_ip = re.search(ip_regex,lines[i])
+
+			if found_single_mac: found_single_mac = found_single_mac.group()
+			if found_single_ip: found_single_ip = found_single_ip.group()
+
+			# If we have MAC and corresponding IP from a file
+			if found_single_mac and found_single_ip:
+				print('[+] \t%d. Append destination MAC %s and matched IP %s ' %(i,paint_s(found_single_mac,'green'),paint_s(found_single_ip,'green')) )
+				addresses['dst_macs'].append(
+					{'mac':found_single_mac,'ip_gw':found_single_ip}
+				)
+
+			# If we have only MAC from a file
+			if found_single_mac and not found_single_ip:
+				print('[+] \t%d. Append only destination MAC %s from this line ' %(i,paint_s(found_single_mac,'green')))
+				addresses['dst_macs'].append(
+					{'mac':found_single_mac,'ip_gw':''}
+				)
+
+			if not found_single_mac:
+				printc('[-] \t%d. This line does not contain valid MAC: "%s"' % (i,paint_s(lines[i],'orange')) )
+
+	if options.mac:
+		found_single_mac = re.search(mac_regex, options.mac)
+
+		if found_single_mac:
+			found_single_mac = found_single_mac.group()
+			print('[+] Using destination MAC: %s' % paint_s(found_single_mac,'green') )
+			addresses['dst_macs'].append(
+				{'mac':found_single_mac,'ip_gw':''}
+			)
+
+		else:
+			print(paint_s('[E] Not valid destination MAC: "%s"' % options.mac,'red') )
+			sys.exit(0)
+
+	if options.ipfile:
+
+		# Load file with next-hop mac addresses
+		mac_file = open(options.ipfile, 'r')
+		lines = list(map(lambda x: x.rstrip(), mac_file.readlines()))
+
+		print('[I] Parsing file with destination IP addresses: %s' % paint_s(options.ipfile,'blue') )
+		for i in range (len(lines)):
+
+			# If regex is true 
+			found_single_ip = re.search(ip_regex,lines[i])
+
+			if found_single_ip: found_single_ip = found_single_ip.group()
+
+			# If we have an IP address from a file
+			if found_single_ip:
+				print('[+] \t%d. Append destination IP: %s ' %(i,paint_s(found_single_ip,'blue')) )
+				addresses['dst_ips'].append(
+					found_single_ip
+				)
 			else:
-				printc('[+] \t%d. Append %s: %s' % (i,object_name,m.group()),'green')
-				objects.append(m.group())
+				print('[-] \t%d. This line does not contain valid IP: "%s"' % (i,paint_s(lines[i],'orange'))) 
 
-		if len(objects) == 0:
-			printc("[E] No %s addresses found in %s" % (object_name,options_load_file),'red')
-			sys.exit(0)
+
+	if options.ip:
+		found_single_ip = re.search(ip_regex, options.ip)
+
+		if found_single_ip:
+			found_single_ip = found_single_ip.group()
+			print('[+] Using destination IP: %s' % paint_s(found_single_ip,'blue') )
+			addresses['dst_ips'].append(
+				found_single_ip
+			)
+
 		else:
-			printc("[+] Using %s %s addresses from %s" % (len(objects),object_name,options_load_file),'blue')
-
-	elif options_load_string:
-		m = re.search(object_regex,options_load_string)
-		if not m:
-			printc('[E] Not valid %s address: "%s"' % (object_name, options_load_string),'orange')
+			print(paint_s('[E] Not valid destination IP: "%s"' % options.ip,'red') )
 			sys.exit(0)
-		else:
-			printc('[+] Using %s: %s' % (object_name,m.group()),'blue')
-			objects.append(m.group())
 
-	# for debug
-	# print(objects)
-	return(objects)
+	return(addresses)
 
-def create_packets(macs, ips):
+
+def create_packets(macs):
 	# Build list of packets to send
 	seq = 0
 
@@ -96,70 +156,81 @@ def create_packets(macs, ips):
 	# 	},
 
 	packets = {	}
-	for mac in macs:
-		for ip in ips:
+
+	for mac_dict in addresses['dst_macs']:
+
+		for ip in addresses['dst_ips']:
+
 
 			# =========================== ICMP creation =========================== 
 			# Echo request, TTL=1
 			icmp_ttl1_seq = random.randint(0,65535)
 			packets[icmp_ttl1_seq]={ 
-				'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/ICMP(seq=icmp_ttl1_seq),
+				'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac_dict['mac'])/IP(dst=ip,ttl=1)/ICMP(seq=icmp_ttl1_seq),
 				'type': 'ping', 
-				'dstip': ip, 
-				'dstmac': mac, 
-				'message': '%s - ICMP test - appears to route ICMP Ping packets to %s.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
+				'message': '%s - (%s) - to %s - ICMP TTL1 - appears to route ICMP Ping packets.  Received ICMP TTL Exceeded in transit response' % 
+					(
+						paint_s(mac_dict['mac'],'green'),
+						paint_s(mac_dict['ip_gw'],'green'),
+						paint_s(ip,'blue')
+					) 
 				}
 
 			# Echo request
 			icmp_seq = random.randint(0,65535)
 			packets[icmp_seq]={ 
-				'packet': Ether(dst=mac)/IP(dst=ip)/ICMP(seq=icmp_seq),
+				'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac_dict['mac'])/IP(dst=ip)/ICMP(seq=icmp_seq),
 				'type': 'ping', 
-				'dstip': ip, 
-				'dstmac': mac, 
-				'message': '%s - ICMP test - successfully ping host %s (ping %s via %s)' % (mac,ip,ip,mac) 
+				'message': '%s - (%s) - to %s - ICMP - successfully ping host (ping %s via %s)'% 
+					(
+						paint_s(mac_dict['mac'],'green'),
+						paint_s(mac_dict['ip_gw'],'green'),
+						paint_s(ip,'blue'),
+						ip,
+						mac_dict['ip_gw']
+					) 
 				}
 
-			# =========================== TCP creation =========================== 
-			# TCP SYN to port 80, TTL=1
-			tcp80_ttl1_syn_seq = random.randint(0,65535)
-			packets[tcp80_ttl1_syn_seq]={ 
-				'packet': Ether(dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=tcp80_ttl1_syn_seq,sport=random.randint(4096,65535),dport=80), 
-				'type': 'tcpsyn', 
-				'dstip': ip, 
-				'dstmac': mac, 
-				'message': '%s - TCP test - appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
-				}
+			# # =========================== TCP creation =========================== 
+			# # TCP SYN to port 80, TTL=1
+			# tcp80_ttl1_syn_seq = random.randint(0,65535)
+			# packets[tcp80_ttl1_syn_seq]={ 
+			# 	'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac)/IP(dst=ip,ttl=1)/TCP(seq=tcp80_ttl1_syn_seq,sport=random.randint(4096,65535),dport=80), 
+			# 	'type': 'tcpsyn', 
+			# 	'dstip': ip, 
+			# 	'dstmac': mac, 
+			# 	'message': '%s - TCP test 80 - ttl 1- appears to route TCP packets %s:80.  Received ICMP TTL Exceeded in transit response.' % (mac, ip) 
+			# 	}
 
-			# TCP SYN to port 80
-			tcp80_syn_seq = random.randint(0,65535)
-			packets[tcp80_syn_seq]={
-				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp80_syn_seq,sport=random.randint(4096,65535),dport=80), 
-				'type': 'tcpsyn', 
-				'dstip': ip, 
-				'dstmac': mac, 
-				'message': '%s - TCP test - we can reach TCP port 80 on %s via specified MAC ' % (mac, ip) 
-				}
+			# # TCP SYN to port 80
+			# tcp80_syn_seq = random.randint(0,65535)
+			# packets[tcp80_syn_seq]={
+			# 	'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac)/IP(dst=ip)/TCP(seq=tcp80_syn_seq,sport=random.randint(4096,65535),dport=80), 
+			# 	'type': 'tcpsyn', 
+			# 	'dstip': ip, 
+			# 	'dstmac': mac, 
+			# 	'message': '%s - TCP test 80 - we can reach TCP port 80 on %s via specified MAC ' % (mac, ip) 
+			# 	}
 
-			# TCP SYN to port 443
-			tcp443_syn_seq = random.randint(0,65535)
-			packets[tcp443_syn_seq]={
-				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp443_syn_seq,sport=random.randint(4096,65535),dport=443), 
-				'type': 'tcpsyn',
-				'dstip': ip,
-				'dstmac': mac,
-				'message': '%s - TCP test - we can reach TCP port 443 on %s via specified MAC ' % (mac, ip) 
-				}
+			# # TCP SYN to port 443
+			# tcp443_syn_seq = random.randint(0,65535)
+			# packets[tcp443_syn_seq]={
+			# 	'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac)/IP(dst=ip)/TCP(seq=tcp443_syn_seq,sport=random.randint(4096,65535),dport=443), 
+			# 	'type': 'tcpsyn',
+			# 	'dstip': ip,
+			# 	'dstmac': mac,
+			# 	'message': '%s - TCP test 443 - we can reach TCP port 443 on %s via specified MAC ' % (mac, ip) 
+			# 	}
 
-			# TCP SYN to port 23
-			tcp23_syn_seq = random.randint(0,65535)
-			packets[tcp23_syn_seq]={ 
-				'packet': Ether(dst=mac)/IP(dst=ip)/TCP(seq=tcp23_syn_seq,sport=random.randint(4096,65535),dport=23), 
-				'type': 'tcpsyn',
-				'dstip': ip,
-				'dstmac': mac,
-				'message': '%s - TCP - we can reach TCP port 23 on %s via specified MAC ' % (mac, ip) 
-				}
+			# # TCP SYN to port 23
+			# tcp23_syn_seq = random.randint(0,65535)
+			# packets[tcp23_syn_seq]={ 
+			# 	'packet': Ether(src=get_if_hwaddr(options.interface),dst=mac)/IP(dst=ip)/TCP(seq=tcp23_syn_seq,sport=random.randint(4096,65535),dport=23), 
+			# 	'type': 'tcpsyn',
+			# 	'dstip': ip,
+			# 	'dstmac': mac,
+			# 	'message': '%s - TCP test 23- we can reach TCP port 23 on %s via specified MAC ' % (mac, ip) 
+			# 	}
 
 	return(packets)
 
@@ -207,12 +278,10 @@ def send_and_sniff(packets, ip_addresses_dst, verbosity_level):
 		# give child time to start sniffer
 		sleep(2) 
 		printc("\n[I] Parent processing sending packets...",'purple')
-
-		verbose=0
-		if verbosity_level == 2: verbose=1
+		print("[ ] Gateway MAC addr  - Gateway IP addr - Destination IP addr - Test - Comment")
 		
 		for some_packet_seq in packets:
-			sendp(packets[some_packet_seq]['packet'], verbose=verbose)
+			sendp(packets[some_packet_seq]['packet'], verbose=0)
 		printc("[I] Parent finished sending packets\n",'purple')
 
 		# give child time to capture last reply
@@ -291,22 +360,39 @@ in macs.txt (ARP scan to find MACs)")
 		printc("[E] No interface specified.  -h for help.",'red')
 		sys.exit(0)
 
-	printc("[+] Using interface: %s"%options.interface,'blue')
+
+	print("[+] Using interface: %s" % paint_s(options.interface,'purple'))
 
 
+	verbosity_names = {
+		0:'None',
+		1:'Medium'
+	}
 	# Verbosity settings
 	verbosity_level = 0
 	if options.verbose:	verbosity_level = 1
 	elif options.verbosemax: verbosity_level = 2
-	printc("[+] Using verbose level: %s"%verbosity_level,'blue')
+	print("[+] Using verbose level: %s" % paint_s(verbosity_names[verbosity_level],'purple'))
 
-	mac_addrs_dst = load_objects('mac')
-	ip_addrs_dst = load_objects('ip')
-	packets = create_packets(mac_addrs_dst, ip_addrs_dst)
+	addresses = load_objects_new(options)
+
+	packets = create_packets(addresses)
 
 	# for debug
 	#print('packets',packets)
 
-	print("[+] Will be sending %d packets. %d packet[s] for each combinations" % (len(packets), len(packets)/(len(mac_addrs_dst)*len(ip_addrs_dst))))
+	num_of_packets_created = len(packets)
+	num_of_packets_per_combo = len(addresses['dst_macs'])*len(addresses['dst_ips']) 
+	num_of_checks = 2
 
-	send_and_sniff(packets, ip_addrs_dst, verbosity_level)
+	print("[I] Total number of MAC gateways: %d " % len(addresses['dst_macs'] ))
+	print("[I] Total number of IP destinations: %d " % len(addresses['dst_ips']))
+	print("[I] Will be sending %s packets: %s packet[s] for each of %s check[s]" % 
+		(
+			paint_s(num_of_packets_created,'purple'),
+			paint_s(num_of_packets_per_combo,'purple'),
+			paint_s(num_of_checks,'purple')
+		)
+	)
+
+	send_and_sniff(packets, addresses['dst_ips'], verbosity_level)
