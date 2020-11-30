@@ -1,2 +1,4 @@
 *.html
 *test*
+scapy/
+venv/

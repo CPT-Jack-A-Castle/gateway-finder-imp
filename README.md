@@ -32,7 +32,13 @@ You can specify your own ports now!
 
 ## Install 
 
-`pip3 install -r requirements.txt`
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+git clone https://github.com/secdev/scapy
+pip3 install scapy/.
+```
 
 ## Run
 
@@ -111,3 +117,7 @@ Use your favourite ARP scanning to identify systems on the local LAN. Save the o
 - [x] `[feature]` develop a convenient way to add new network tests 
 - [x] `[feature]` - add support of checks to custom ports
 - [ ] `[feature]` IPv6 support
+- [ ] `[feature]` Specify target subnet (not just a)
+- [ ] `[feature]` Add `debug` mode - with all info 
+- [ ] `[feature]` Add `100% working` mode - show only absolutely working checks (without appears to be)
+
