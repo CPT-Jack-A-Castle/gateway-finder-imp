@@ -92,7 +92,7 @@ def load_objects_new(options):
 				)
 
 			if not found_single_mac:
-				printc('[-] \t%d. This line does not contain valid MAC: "%s"' % (i,paint_s(lines[i],'orange')) )
+				print('[-] \t%d. This line does not contain valid MAC: "%s"' % (i,paint_s(lines[i],'orange')) )
 
 		if len(addresses['dst_macs'] ) != 0:
 			printc("[I] Will be using %d gateway MAC addresses" % len(addresses['dst_macs'] ),'green')
